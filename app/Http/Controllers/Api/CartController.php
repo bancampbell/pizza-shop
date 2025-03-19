@@ -3,66 +3,98 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cart;
 use App\Models\Product;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
 class CartController extends Controller
 {
 
-    public function index()
+    public function index(): JsonResponse
     {
         $cart = Session::get('cart', []);
         return response()->json($cart);
     }
 
-
     // Добавление продукта в корзину
-    public function add(Request $request, $productId)
+    public function add(Request $request, $productId): JsonResponse
     {
-        $product = Product::find($productId);
-        if (!$product) {
-            return response()->json(['message' => 'Товар не найден'], 404);
-        }
+        $quantity = $request->input('quantity', 1);
 
+        // Если пользователь аутентифицирован, сохраняем корзину в базе данных
+        if (Auth::check()) {
+            $userId = Auth::id();
 
-        $cart = Session::get('cart', []);
+            // Проверяем, есть ли уже такой товар в корзине
+            $cartItem = Cart::where('user_id', $userId)
+                ->where('product_id', $productId)
+                ->first();
 
-        // Проверяем, есть ли продукт уже в корзине
-        if (isset($cart[$productId])) {
-            $cart[$productId]['quantity'] += $request->quantity ?? 1;
+            if ($cartItem) {
+                // Если товар уже есть в корзине, обновляем количество
+                $cartItem->quantity += $quantity;
+                $cartItem->save();
+            } else {
+                // Если товара нет в корзине, создаем новую запись
+                Cart::create([
+                    'user_id' => $userId,
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                ]);
+            }
         } else {
-            $cart[$productId] = [
-                'id' => $product->id,
-                'name' => $product->name,
-                'price' => $product->price,
-                'type' => $product->type,
-                'quantity' => $request->quantity ?? 1,
-            ];
+            // Если пользователь не аутентифицирован, сохраняем корзину в сессии
+            $cart = Session::get('cart', []);
+
+            // Проверяем, есть ли уже такой товар в корзине
+            if (isset($cart[$productId])) {
+                // Если товар уже есть в корзине, увеличиваем количество
+                $cart[$productId] += $quantity;
+            } else {
+                // Если товара нет в корзине, добавляем его
+                $cart[$productId] = $quantity;
+            }
+            // Сохраняем обновленную корзину в сессии
+            Session::put('cart', $cart);
         }
 
-        Session::put('cart', $cart);
-        return response()->json(['message' => 'Товар добавлен в корзину', 'cart' => $cart]);
+        return response()->json(['message' => 'Продукт добавлен в корзину']);
     }
 
-
     // Удаление продукта из корзины
-    public function remove($productId)
+    public function remove(string $productId): JsonResponse
     {
-        $cart = Session::get('cart', []);
+        if (Auth::check()) {
+            // Если пользователь аутентифицирован, удаляем товар из базы данных
+            $deleted = Cart::where('user_id', Auth::id())->where('product_id', $productId)->delete();
 
-        if (isset($cart[$productId])) {
-            unset($cart[$productId]);
-            Session::put('cart', $cart);
-            return response()->json(['message' => 'Товар удален из корзины', 'cart' => $cart]);
+            if ($deleted === 0) {
+                // Если товар не найден в корзине
+                return response()->json(['message' => 'Товар не найден в корзине'], Response::HTTP_NOT_FOUND);
+            }
+        } else {
+            // Если пользователь не аутентифицирован, удаляем товар из сессии
+            $cart = Session::get('cart', []);
+
+            if (isset($cart[$productId])) {
+                unset($cart[$productId]); // Удаляем товар из корзины
+                Session::put('cart', $cart); // Обновляем корзину в сессии
+            } else {
+                // Если товар не найден в корзине
+                return response()->json(['message' => 'Товар не найден в корзине'], Response::HTTP_NOT_FOUND);
+            }
         }
 
-        return response()->json(['message' => 'Товар не найден в корзине'], 404);
+        return response()->json(['message' => 'Товар удален из корзины']);
     }
 
 
     // Очистка корзины
-    public function clear()
+    public function clear(): JsonResponse
     {
         Session::forget('cart');
         return response()->json(['message' => 'Корзина очищена']);
