@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Route;
 
 //Маршруты Юзера
 Route::post('/register', [RegisterController::class, 'register'])->middleware('api');
-Route::post('/login', [LoginController::class, 'login']);
-Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth');
+Route::post('/login', [LoginController::class, 'login'])->name('login');
+Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth:sanctum');
 
 
 // Маршруты для Товаров
@@ -22,7 +22,7 @@ Route::apiResource('products', ProductController::class);
 // Маршруты для корзины
 Route::middleware(['api', StartSession::class, AddQueuedCookiesToResponse::class])->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
-    Route::post('/cart/add/{productId}', [CartController::class, 'add']);
+    Route::post('/cart/add/{productId}', [CartController::class, 'add'])->middleware('auth:sanctum');
     Route::delete('/cart/remove/{productId}', [CartController::class, 'remove']);
     Route::delete('/cart/clear', [CartController::class, 'clear']);
 });

@@ -11,12 +11,27 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
+
 class CartController extends Controller
 {
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $cart = Session::get('cart', []);
+        if ($request->user()) {
+            // Если пользователь аутентифицирован, получаем корзину из базы данных
+            $userId = $request->user()->id;
+            $cartItems = Cart::where('user_id', $userId)->get();
+
+            // Форматируем данные в том же формате, что и сессия
+            $cart = [];
+            foreach ($cartItems as $item) {
+                $cart[$item->product_id] = $item->quantity;
+            }
+        } else {
+            // Если пользователь не аутентифицирован, получаем корзину из сессии
+            $cart = Session::get('cart', []);
+        }
+
         return response()->json($cart);
     }
 
@@ -25,14 +40,12 @@ class CartController extends Controller
     {
         $quantity = $request->input('quantity', 1);
 
-        // Если пользователь аутентифицирован, сохраняем корзину в базе данных
-        if (Auth::check()) {
-            $userId = Auth::id();
+        // Проверяем аутентификацию через Sanctum
+        if ($request->user()) {
+            $userId = $request->user()->id;
 
             // Проверяем, есть ли уже такой товар в корзине
-            $cartItem = Cart::where('user_id', $userId)
-                ->where('product_id', $productId)
-                ->first();
+            $cartItem = Cart::where('user_id', $userId)->where('product_id', $productId)->first();
 
             if ($cartItem) {
                 // Если товар уже есть в корзине, обновляем количество
@@ -58,17 +71,19 @@ class CartController extends Controller
                 // Если товара нет в корзине, добавляем его
                 $cart[$productId] = $quantity;
             }
+
             // Сохраняем обновленную корзину в сессии
             Session::put('cart', $cart);
+
         }
 
         return response()->json(['message' => 'Продукт добавлен в корзину']);
     }
 
     // Удаление продукта из корзины
-    public function remove(string $productId): JsonResponse
+    public function remove(Request $request, $productId): JsonResponse
     {
-        if (Auth::check()) {
+        if ($request->user()) {
             // Если пользователь аутентифицирован, удаляем товар из базы данных
             $deleted = Cart::where('user_id', Auth::id())->where('product_id', $productId)->delete();
 
@@ -94,9 +109,14 @@ class CartController extends Controller
 
 
     // Очистка корзины
-    public function clear(): JsonResponse
+    public function clear(Request $request): JsonResponse
     {
-        Session::forget('cart');
+        if ($request->user()) {
+            Cart::where('user_id', $request->user()->id)->delete();
+        } else {
+            Session::forget('cart');
+        }
+
         return response()->json(['message' => 'Корзина очищена']);
     }
 
