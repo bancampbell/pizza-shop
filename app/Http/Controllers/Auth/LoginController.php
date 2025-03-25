@@ -21,7 +21,8 @@ class LoginController extends Controller
             $user = Auth::user();
 
             // Переносим корзину из сессии в базу данных (если есть данные в сессии)
-            if (!empty($sessionCart)) {
+            if (Session::has('cart') && count(Session::get('cart')) > 0) {
+                $sessionCart = Session::get('cart');
                 foreach ($sessionCart as $productId => $quantity) {
 
                     // Проверяем, есть ли уже такой товар в корзине пользователя
@@ -54,7 +55,7 @@ class LoginController extends Controller
             return response()->json([
                 'message' => 'Авторизация прошла успешно',
                 'user' => $user,
-                'token' => $token, // Возвращаем токен
+                'token' => $token,
             ]);
         }
 

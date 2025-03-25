@@ -38,10 +38,12 @@ class CartController extends Controller
     // Добавление продукта в корзину
     public function add(Request $request, $productId): JsonResponse
     {
+        // Получаем количество товара из запроса (по умолчанию 1)
         $quantity = $request->input('quantity', 1);
 
-        // Проверяем аутентификацию через Sanctum
+        // Проверяем аутентифицирован ли пользователь
         if ($request->user()) {
+            // Если пользователь аутентифицирован, добавляем товар в базу данных
             $userId = $request->user()->id;
 
             // Проверяем, есть ли уже такой товар в корзине
@@ -59,6 +61,8 @@ class CartController extends Controller
                     'quantity' => $quantity,
                 ]);
             }
+
+            return response()->json(['message' => 'Товар добавлен в корзину в базу данных']);
         } else {
             // Если пользователь не аутентифицирован, сохраняем корзину в сессии
             $cart = Session::get('cart', []);
@@ -75,9 +79,8 @@ class CartController extends Controller
             // Сохраняем обновленную корзину в сессии
             Session::put('cart', $cart);
 
+            return response()->json(['message' => 'Товар добавлен в корзину в сессии']);
         }
-
-        return response()->json(['message' => 'Продукт добавлен в корзину']);
     }
 
     // Удаление продукта из корзины

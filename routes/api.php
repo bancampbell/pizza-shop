@@ -22,7 +22,7 @@ Route::apiResource('products', ProductController::class);
 // Маршруты для корзины
 Route::middleware(['api', StartSession::class, AddQueuedCookiesToResponse::class])->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
-    Route::post('/cart/add/{productId}', [CartController::class, 'add'])->middleware('auth:sanctum');
+    Route::post('/cart/add/{productId}', [CartController::class, 'add']);
     Route::delete('/cart/remove/{productId}', [CartController::class, 'remove']);
     Route::delete('/cart/clear', [CartController::class, 'clear']);
 });
