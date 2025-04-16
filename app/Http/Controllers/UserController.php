@@ -31,7 +31,7 @@ class UserController extends Controller
 
         return response()->json([
             'user' => $user->only('id', 'name', 'email'),
-            'current_orders' => $orders->whereNotIn('status', ['завершен', 'отменен']),
+            'current_orders' => $orders->whereNotIn('status', ['новый', 'в обработке', 'доставляется']),
             'order_history' => $orders->whereIn('status', ['завершен', 'отменен'])
         ]);
     }
