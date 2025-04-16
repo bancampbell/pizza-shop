@@ -1,22 +1,22 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\IndexProductRequest;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use App\Http\Requests\IndexProductRequest;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class ProductController extends Controller
 {
+
     /**
      * Display a listing of the resource.
      */
-    // Получаем список всех продуктов
     public function index(IndexProductRequest $request): JsonResponse
     {
         $perPage = $request->input('per_page', 10);
@@ -36,7 +36,6 @@ class ProductController extends Controller
     /**
      * Display the specified resource.
      */
-    // Получаем один продукт по ID
     public function show(Product $product): JsonResponse
     {
         return response()->json($product);
@@ -50,7 +49,6 @@ class ProductController extends Controller
         $product->update($request->validated());
         return response()->json($product);
     }
-
 
     /**
      * Remove the specified resource from storage.

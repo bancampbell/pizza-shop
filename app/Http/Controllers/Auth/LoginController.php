@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
 class LoginController extends Controller
@@ -52,10 +53,20 @@ class LoginController extends Controller
             // Создаем токен для пользователя
             $token = $user->createToken('auth-token')->plainTextToken;
 
+            // Определение роли и маршрутов
+            $isAdmin = $user->is_admin;
+            $redirectTo = $isAdmin ? '/admin/dashboard' : '/';
+
             return response()->json([
-                'message' => 'Авторизация прошла успешно',
-                'user' => $user,
+                'message' => 'Авторизация успешна',
                 'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_admin' => $user->isAdmin()
+                ],
+                'redirect_to' => $user->isAdmin() ? '/admin/dashboard' : '/user/account'
             ]);
         }
 
@@ -64,8 +75,24 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Вы вышли из системы']);
+        try {
+            // Получаем чистый токен без префикса
+            $tokenId = explode('|', $request->bearerToken())[0];
+
+            // Удаляем токен напрямую через DB
+            DB::table('personal_access_tokens')->where('id', $tokenId)->delete();
+
+            // Очищаем сессию
+            $request->session()->invalidate();
+
+            return response()->json(['message' => 'Вы успешно вышли']);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Ошибка выхода',
+                'error' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
 }
