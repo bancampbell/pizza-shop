@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\OrderStatusUpdateRequest;
 use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,9 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class OrderController extends Controller
 {
-
-
-     // Список всех заказов
+    // Список всех заказов
     public function index(Request $request): JsonResponse
     {
         $perPage = $request->input('per_page', 10);
@@ -25,8 +24,7 @@ class OrderController extends Controller
         return response()->json($orders);
     }
 
-
-     // Просмотр конкретного заказа
+    // Просмотр заказа
     public function show(Order $order): JsonResponse
     {
         return response()->json(
@@ -37,14 +35,10 @@ class OrderController extends Controller
         );
     }
 
-   // Обновление статуса заказа
-    public function updateStatus(Request $request, Order $order): JsonResponse
+    // Обновление статуса
+    public function updateStatus(OrderStatusUpdateRequest $request, Order $order): JsonResponse
     {
-        $validated = $request->validate([
-            'status' => 'required|in:новый,в обработке,доставляется,завершен,отменен'
-        ]);
-
-        $order->update($validated);
+        $order->update($request->validated());
 
         return response()->json([
             'message' => 'Статус заказа обновлен',

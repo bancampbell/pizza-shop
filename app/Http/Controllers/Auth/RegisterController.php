@@ -11,9 +11,8 @@ use Illuminate\Support\Facades\Hash;
 
 class RegisterController extends Controller
 {
-    public function register(RegisterUserRequest  $request): JsonResponse
+    public function register(RegisterUserRequest $request): JsonResponse
     {
-
         // Создание пользователя
         $user = User::create([
             'name' => $request->name,
@@ -21,9 +20,13 @@ class RegisterController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // Авторизация пользователя
-        auth()->login($user);
+        // Создание токена аутентификации
+        $token = $user->createToken('auth-token')->plainTextToken;
 
-        return response()->json(['message' => 'Регистрация прошла успешно', 'user' => $user]);
+        return response()->json([
+            'message' => 'Регистрация прошла успешно',
+            'user' => $user,
+            'token' => $token // Добавляем токен в ответ
+        ], 201);
     }
 }

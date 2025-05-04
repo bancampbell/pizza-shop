@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Order extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['user_id', 'phone', 'email', 'address', 'delivery_time', 'status','total',];
     protected $casts = ['total' => 'float',];
     public function user()

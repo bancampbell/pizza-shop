@@ -55,9 +55,20 @@ class OrderController extends Controller
 
     public function index()
     {
-        $orders = auth()->user()->orders()->with(['products' => fn($q) => $q->select('id', 'name', 'price')])
+        $orders = auth()->user()->orders()
+            ->with([
+                'user:id,name',
+                'products' => function($query) {
+                    $query->select(
+                        'products.id',
+                        'products.name',
+                        'products.price',
+                        'order_product.quantity',
+                        'order_product.price as pivot_price'
+                    );
+                }])
             ->latest()
-            ->get(['id', 'total', 'status', 'created_at']);
+            ->get(['orders.id', 'orders.status', 'orders.created_at', 'orders.user_id']);
 
         return response()->json($orders);
     }
@@ -69,7 +80,15 @@ class OrderController extends Controller
         }
 
         return response()->json(
-            $order->load(['products' => fn($q) => $q->select('id', 'name', 'price')])
+            $order->load(['products' => function($query) {
+                $query->select(
+                    'products.id',
+                    'products.name',
+                    'products.price',
+                    'order_product.quantity',
+                    'order_product.price as pivot_price'
+                );
+            }])
         );
     }
 }

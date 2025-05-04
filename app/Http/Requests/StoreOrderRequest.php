@@ -15,10 +15,10 @@ class StoreOrderRequest extends FormRequest
     public function rules()
     {
         return [
-            'phone' => 'required|string|max:20',
+            'phone' => 'required|string|max:20|regex:/^[0-9]+$/',
             'email' => 'required|email|max:255',
             'address' => 'required|string|max:500',
-            'delivery_time' => 'required|date|after:now'
+            'delivery_time' => 'required|date|after:now',
         ];
     }
 

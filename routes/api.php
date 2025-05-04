@@ -3,7 +3,6 @@
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
-//use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\UserController;
@@ -11,6 +10,9 @@ use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+
+
+
 
 //Маршруты Юзера
 Route::post('/register', [RegisterController::class, 'register'])->middleware('api');
@@ -25,9 +27,9 @@ Route::prefix('user')->middleware('auth:sanctum')->group(function () {
 
 //Маршруты заказа Юзера
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/orders', [OrderController::class, 'store']);
-    Route::get('/orders', [OrderController::class, 'index']);
-    Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::post('/users/me/orders', [OrderController::class, 'store']);
+    Route::get('/users/me/orders', [OrderController::class, 'index']);
+    Route::get('/users/me/orders/{order}', [OrderController::class, 'show']);
 });
 
 

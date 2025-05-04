@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,108 +16,67 @@ use Illuminate\Support\Facades\Session;
 class CartController extends Controller
 {
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
-        if ($request->user()) {
-            // Если пользователь аутентифицирован, получаем корзину из базы данных
-            $userId = $request->user()->id;
-            $cartItems = Cart::where('user_id', $userId)->get();
-
-            // Форматируем данные в том же формате, что и сессия
-            $cart = [];
-            foreach ($cartItems as $item) {
-                $cart[$item->product_id] = $item->quantity;
-            }
-        } else {
-            // Если пользователь не аутентифицирован, получаем корзину из сессии
-            $cart = Session::get('cart', []);
+        // Явная проверка аутентификации
+        if (!auth()->check()) {
+            return response()->json([], Response::HTTP_UNAUTHORIZED);
         }
 
-        return response()->json($cart);
+        // Получаем корзину с продуктами
+        $cartItems = Cart::with('product:id,name,price')
+            ->where('user_id', auth()->id())
+            ->get();
+
+        // Формируем ответ
+        $response = [];
+        foreach ($cartItems as $item) {
+            $response[$item->product_id] = $item->quantity;
+        }
+
+        return response()->json($response);
     }
 
     // Добавление продукта в корзину
+    protected CartService $cartService;
+
+    public function __construct(CartService $cartService)
+    {
+        $this->cartService = $cartService;
+    }
+
     public function add(Request $request, $productId): JsonResponse
     {
-        $quantity = $request->input('quantity', 1);
-        $product = Product::findOrFail($productId);
+        try {
+            $quantity = $request->input('quantity', 1);
+            $product = Product::findOrFail($productId);
 
-        // Лимиты для разных типов продуктов
-        $typeLimits = [
-            'pizza' => 10,
-            'drink' => 20
-        ];
+            $result = $this->cartService->addProductToCart(
+                $request->user(),
+                $product,
+                $quantity
+            );
 
-        // Проверяем тип продукта
-        if (!array_key_exists($product->type, $typeLimits)) {
-            return response()->json(['error' => 'Неизвестный тип продукта'], Response::HTTP_BAD_REQUEST);
+            return response()->json([
+                'message' => 'Товар добавлен в корзину',
+                'cart' => $result['cart'] ?? null,
+                'added_product' => $result['added_product'] ?? null
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (\LogicException $e) {
+            return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
+    }
 
-        $limit = $typeLimits[$product->type];
+    public function show(Request $request): JsonResponse
+    {
+        $cartData = $request->user()
+            ? $this->cartService->getUserCart($request->user()->id)
+            : $this->cartService->getGuestCart();
 
-        if ($request->user()) {
-            // Логика для авторизованных пользователей
-            $userId = $request->user()->id;
-
-            // Получаем текущее количество этого типа продуктов в корзине
-            $currentQuantity = Cart::where('user_id', $userId)
-                ->whereHas('product', function($query) use ($product) {
-                    $query->where('type', $product->type);
-                })
-                ->sum('quantity');
-
-            // Проверка лимита
-            if (($currentQuantity + $quantity) > $limit) {
-                return response()->json([
-                    'error' => "Максимальное количество {$product->type} в корзине - $limit"], Response::HTTP_BAD_REQUEST);
-            }
-
-            // Добавление в корзину
-            $cartItem = Cart::where('user_id', $userId)->where('product_id', $productId)->first();
-
-            if ($cartItem) {
-                $cartItem->quantity += $quantity;
-                $cartItem->save();
-            } else {
-                Cart::create([
-                    'user_id' => $userId,
-                    'product_id' => $productId,
-                    'quantity' => $quantity,
-                ]);
-            }
-
-            return response()->json(['message' => 'Товар добавлен в корзину']);
-        } else {
-            // Логика для гостевых пользователей
-            $cart = Session::get('cart', []);
-
-            // Подсчет текущего количества этого типа продуктов
-            $currentQuantity = 0;
-            foreach ($cart as $id => $qty) {
-                $p = Product::find($id);
-                if ($p && $p->type === $product->type) {
-                    $currentQuantity += $qty;
-                }
-            }
-
-            // Проверка лимита
-            if (($currentQuantity + $quantity) > $limit) {
-                return response()->json([
-                    'error' => "Максимальное количество {$product->type} в корзине - $limit"
-                ], Response::HTTP_BAD_REQUEST);
-            }
-
-            // Добавление в сессию
-            if (isset($cart[$productId])) {
-                $cart[$productId] += $quantity;
-            } else {
-                $cart[$productId] = $quantity;
-            }
-
-            Session::put('cart', $cart);
-
-            return response()->json(['message' => 'Товар добавлен в корзину']);
-        }
+        return response()->json(['cart' => $cartData]);
     }
 
     // Удаление продукта из корзины

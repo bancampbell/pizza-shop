@@ -53,10 +53,6 @@ class LoginController extends Controller
             // Создаем токен для пользователя
             $token = $user->createToken('auth-token')->plainTextToken;
 
-            // Определение роли и маршрутов
-            $isAdmin = $user->is_admin;
-            $redirectTo = $isAdmin ? '/admin/dashboard' : '/';
-
             return response()->json([
                 'message' => 'Авторизация успешна',
                 'token' => $token,
