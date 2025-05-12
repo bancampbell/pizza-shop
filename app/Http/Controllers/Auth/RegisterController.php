@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterUserRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class RegisterController extends Controller
@@ -26,7 +25,7 @@ class RegisterController extends Controller
         return response()->json([
             'message' => 'Регистрация прошла успешно',
             'user' => $user,
-            'token' => $token // Добавляем токен в ответ
+            'token' => $token, // Добавляем токен в ответ
         ], 201);
     }
 }

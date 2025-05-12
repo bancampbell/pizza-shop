@@ -2,27 +2,122 @@
 
 namespace App\Services;
 
-use App\Models\Product;
 use App\Models\Cart;
+use App\Models\CartItem;
+use App\Models\Product;
+use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Database\Eloquent\Collection;
 
 class CartService
 {
     protected $typeLimits = [
         'pizza' => 10,
-        'drink' => 20
+        'drink' => 20,
     ];
 
-    public function addProductToCart($user, Product $product, int $quantity = 1): array
+    public function getCart(?User $user = null): Cart
     {
-        $this->validateProductType($product);
-
         if ($user) {
-            return $this->addForAuthenticatedUser($user, $product, $quantity);
+            return $user->cart()->firstOrCreate();
         }
 
-        return $this->addForGuest($product, $quantity);
+        $cartId = Session::get('cart_id');
+        if (!$cartId) {
+            $cart = Cart::create();
+            Session::put('cart_id', $cart->id);
+            return $cart;
+        }
+
+        return Cart::findOrFail($cartId);
+    }
+
+    public function addProductToCart(?User $user, Product|int $product, int $quantity = 1): array
+    {
+        $product = $product instanceof Product
+            ? $product
+            : Product::findOrFail($product);
+
+        $this->validateProductType($product);
+
+        $cart = $this->getCart($user);
+        $this->checkQuantityLimits($cart, $product, $quantity);
+
+        $cartItem = $cart->items()->firstOrNew([
+            'product_id' => $product->id
+        ]);
+
+        $cartItem->quantity += $quantity;
+        $cartItem->save();
+
+        return [
+            'cart' => $this->formatCart($cart),
+            'added_product' => $product->only('id', 'name', 'price'),
+        ];
+    }
+
+    public function removeProduct(?User $user, int $productId): void
+    {
+        $cart = $this->getCart($user);
+        $deleted = $cart->items()->where('product_id', $productId)->delete();
+
+        if ($deleted === 0) {
+            throw new ModelNotFoundException('Товар не найден в корзине');
+        }
+    }
+
+    public function updateProductQuantity(?User $user, int $productId, int $quantity): array
+    {
+        if ($quantity <= 0) {
+            $this->removeProduct($user, $productId);
+            return $this->getFormattedCart($user);
+        }
+
+        $product = Product::findOrFail($productId);
+        $cart = $this->getCart($user);
+
+        $this->checkQuantityLimits($cart, $product, $quantity, true);
+
+        $cart->items()->updateOrCreate(
+            ['product_id' => $productId],
+            ['quantity' => $quantity]
+        );
+
+        return $this->getFormattedCart($user);
+    }
+
+    public function clearCart(?User $user): void
+    {
+        $cart = $this->getCart($user);
+        $cart->items()->delete();
+    }
+
+    public function getFormattedCart(?User $user): array
+    {
+        $cart = $this->getCart($user);
+        return $this->formatCart($cart);
+    }
+
+    protected function formatCart(Cart $cart): array
+    {
+        $cart->load('items.product:id,name,price');
+
+        return [
+            'items' => $cart->items->map(function (CartItem $item) {
+                return [
+                    'product' => $item->product,
+                    'quantity' => $item->quantity,
+                ];
+            })->toArray(),
+            'total' => $this->calculateTotal($cart),
+        ];
+    }
+
+    protected function calculateTotal(Cart $cart): float
+    {
+        return $cart->items->sum(function (CartItem $item) {
+            return $item->product->price * $item->quantity;
+        });
     }
 
     protected function validateProductType(Product $product): void
@@ -32,102 +127,30 @@ class CartService
         }
     }
 
-    protected function addForAuthenticatedUser($user, Product $product, int $quantity): array
-    {
-        $limit = $this->typeLimits[$product->type];
-        $currentQuantity = $this->getUserProductTypeQuantity($user->id, $product->type);
-
-        $this->checkQuantityLimit($currentQuantity + $quantity, $limit, $product->type);
-
-        $cartItem = Cart::firstOrNew([
-            'user_id' => $user->id,
-            'product_id' => $product->id
-        ]);
-
-        $cartItem->quantity += $quantity;
-        $cartItem->save();
-
-        return [
-            'cart' => $this->getUserCart($user->id),
-            'added_product' => $product->only('id', 'name', 'price')
-        ];
-    }
-
-    protected function addForGuest(Product $product, int $quantity): array
-    {
-        $limit = $this->typeLimits[$product->type];
-        $currentQuantity = $this->getGuestProductTypeQuantity($product->type);
-
-        $this->checkQuantityLimit($currentQuantity + $quantity, $limit, $product->type);
-
-        $cart = Session::get('cart', []);
-        $cart[$product->id] = ($cart[$product->id] ?? 0) + $quantity;
-        Session::put('cart', $cart);
-
-        return [];
-    }
-
-    protected function getUserProductTypeQuantity(int $userId, string $productType): int
-    {
-        return Cart::where('user_id', $userId)
-            ->whereHas('product', function($query) use ($productType) {
-                $query->where('type', $productType);
-            })
+    protected function checkQuantityLimits(
+        Cart $cart,
+        Product $product,
+        int $quantity,
+        bool $isUpdate = false
+    ): void {
+        $currentQuantity = $cart->items()
+            ->whereHas('product', fn($q) => $q->where('type', $product->type))
             ->sum('quantity');
-    }
 
-    protected function getGuestProductTypeQuantity(string $productType): int
-    {
-        $cart = Session::get('cart', []);
-        $quantity = 0;
+        if ($isUpdate) {
+            $existingItem = $cart->items()
+                ->where('product_id', $product->id)
+                ->first();
 
-        foreach ($cart as $id => $qty) {
-            $product = Product::find($id);
-            if ($product && $product->type === $productType) {
-                $quantity += $qty;
+            if ($existingItem) {
+                $currentQuantity -= $existingItem->quantity;
             }
         }
 
-        return $quantity;
-    }
+        $limit = $this->typeLimits[$product->type] ?? 0;
 
-    protected function checkQuantityLimit(int $quantity, int $limit, string $productType): void
-    {
-        if ($quantity > $limit) {
-            throw new \LogicException("Максимальное количество $productType в корзине - $limit");
+        if (($currentQuantity + $quantity) > $limit) {
+            throw new \LogicException("Максимальное количество {$product->type} в корзине - {$limit}");
         }
-    }
-
-    public function getUserCart(int $userId): array
-    {
-        $cartItems = Cart::with('product:id,name,price')
-            ->where('user_id', $userId)
-            ->get();
-
-        return [
-            'items' => $cartItems->map(function($item) {
-                return [
-                    'product' => $item->product,
-                    'quantity' => $item->quantity
-                ];
-            })->toArray()
-        ];
-    }
-
-    public function getGuestCart(): array
-    {
-        $cart = Session::get('cart', []);
-        $products = Product::whereIn('id', array_keys($cart))
-            ->get(['id', 'name', 'price'])
-            ->keyBy('id');
-
-        return [
-            'items' => array_map(function($quantity, $productId) use ($products) {
-                return [
-                    'product' => $products[$productId],
-                    'quantity' => $quantity
-                ];
-            }, $cart, array_keys($cart))
-        ];
     }
 }

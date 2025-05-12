@@ -15,7 +15,7 @@ class UserController extends Controller
 
         $currentOrders = $user->orders()
             ->whereNotIn('status', ['новый', 'в обработке', 'доставляется'])
-            ->with(['products' => function($query) {
+            ->with(['products' => function ($query) {
                 $query->select(
                     'products.id',
                     'products.name',
@@ -31,7 +31,7 @@ class UserController extends Controller
 
         $orderHistory = $user->orders()
             ->whereIn('status', ['завершен', 'отменен'])
-            ->with(['products' => function($query) {
+            ->with(['products' => function ($query) {
                 $query->select(
                     'products.id',
                     'products.name',
@@ -48,7 +48,7 @@ class UserController extends Controller
         return response()->json([
             'user' => $user->only('id', 'name', 'email'),
             'current_orders' => $currentOrders,
-            'order_history' => $orderHistory
+            'order_history' => $orderHistory,
         ]);
     }
 }

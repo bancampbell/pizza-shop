@@ -17,7 +17,7 @@ class UserAccountTest extends TestCase
         $token = $user->createToken('test-token')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer ' . $token,
         ])->getJson('/api/user/account');
 
         $response->assertStatus(Response::HTTP_OK)
@@ -25,10 +25,10 @@ class UserAccountTest extends TestCase
                 'user' => [
                     'id',
                     'name',
-                    'email'
+                    'email',
                 ],
                 'current_orders',
-                'order_history'
+                'order_history',
             ]);
     }
 

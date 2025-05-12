@@ -25,7 +25,6 @@ class LoginController extends Controller
             if (Session::has('cart') && count(Session::get('cart')) > 0) {
                 $sessionCart = Session::get('cart');
                 foreach ($sessionCart as $productId => $quantity) {
-
                     // Проверяем, есть ли уже такой товар в корзине пользователя
                     $cartItem = Cart::where('user_id', $user->id)->where('product_id', $productId)->first();
 
@@ -33,7 +32,6 @@ class LoginController extends Controller
                         // Если товар уже есть в корзине, обновляем количество
                         $cartItem->quantity += $quantity;
                         $cartItem->save();
-
                     } else {
                         // Если товара нет в корзине, создаем новую запись
                         $cartItem = Cart::create([
@@ -41,13 +39,11 @@ class LoginController extends Controller
                             'product_id' => $productId,
                             'quantity' => $quantity,
                         ]);
-
                     }
                 }
 
                 // Очищаем корзину в сессии после переноса в базу данных
                 Session::forget('cart');
-
             }
 
             // Создаем токен для пользователя
@@ -60,9 +56,9 @@ class LoginController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'is_admin' => $user->isAdmin()
+                    'is_admin' => $user->isAdmin(),
                 ],
-                'redirect_to' => $user->isAdmin() ? '/admin/dashboard' : '/user/account'
+                'redirect_to' => $user->isAdmin() ? '/admin/dashboard' : '/user/account',
             ]);
         }
 
@@ -82,13 +78,11 @@ class LoginController extends Controller
             $request->session()->invalidate();
 
             return response()->json(['message' => 'Вы успешно вышли']);
-
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Ошибка выхода',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 }

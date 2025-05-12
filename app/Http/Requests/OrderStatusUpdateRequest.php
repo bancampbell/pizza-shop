@@ -14,7 +14,7 @@ class OrderStatusUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => 'required|in:В работе,новый,в обработке,доставляется,завершен,отменен'
+            'status' => 'required|in:В работе,новый,в обработке,доставляется,завершен,отменен',
         ];
     }
 }

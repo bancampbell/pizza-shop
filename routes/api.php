@@ -7,12 +7,8 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\UserController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
-
-
-
 
 //Маршруты Юзера
 Route::post('/register', [RegisterController::class, 'register'])->middleware('api');
@@ -35,7 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Маршруты администратора
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::get('/dashboard', function() {
+    Route::get('/dashboard', function () {
         return response()->json(['message' => 'Добро пожаловать в админ-панель']);
     });
 
@@ -51,14 +47,17 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
 });
 
 // Маршруты для Товаров (только чтение)
-Route::apiResource('products', ProductController::class)->only(['index', 'show']);
+Route::apiResource('products', ProductController::class)->only(['index', 'show', 'store']);
 
 
 // Маршруты для корзины
 Route::middleware(['api', StartSession::class, AddQueuedCookiesToResponse::class])->group(function () {
-    Route::get('/cart', [CartController::class, 'index']);
-    Route::post('/cart/add/{productId}', [CartController::class, 'add']);
-    Route::delete('/cart/remove/{productId}', [CartController::class, 'remove']);
-    Route::delete('/cart/clear', [CartController::class, 'clear']);
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [CartController::class, 'index']);
+        Route::post('/add/{productId}', [CartController::class, 'add']);
+        Route::put('/update/{productId}', [CartController::class, 'update']);
+        Route::delete('/remove/{productId}', [CartController::class, 'remove']);
+        Route::delete('/clear', [CartController::class, 'clear']);
+        Route::get('/total', [CartController::class, 'getTotal']);
+    });
 });
-

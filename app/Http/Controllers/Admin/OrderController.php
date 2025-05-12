@@ -7,8 +7,6 @@ use App\Http\Requests\OrderStatusUpdateRequest;
 use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response;
 
 class OrderController extends Controller
 {
@@ -30,7 +28,7 @@ class OrderController extends Controller
         return response()->json(
             $order->load([
                 'user:id,name,email',
-                'products:id,name,price'
+                'products:id,name,price',
             ])
         );
     }
@@ -43,7 +41,7 @@ class OrderController extends Controller
         return response()->json([
             'message' => 'Статус заказа обновлен',
             'order_id' => $order->id,
-            'new_status' => $order->status
+            'new_status' => $order->status,
         ]);
     }
 }

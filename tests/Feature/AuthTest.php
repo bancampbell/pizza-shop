@@ -18,7 +18,7 @@ class AuthTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
-            'password_confirmation' => 'password'
+            'password_confirmation' => 'password',
         ]);
 
         $response->assertStatus(Response::HTTP_CREATED)
@@ -31,7 +31,7 @@ class AuthTest extends TestCase
             'name' => '',
             'email' => 'not-an-email',
             'password' => 'short',
-            'password_confirmation' => 'mismatch'
+            'password_confirmation' => 'mismatch',
         ]);
 
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -41,12 +41,12 @@ class AuthTest extends TestCase
     public function test_user_can_login_with_correct_credentials()
     {
         $user = User::factory()->create([
-            'password' => bcrypt('password')
+            'password' => bcrypt('password'),
         ]);
 
         $response = $this->postJson('/api/login', [
             'email' => $user->email,
-            'password' => 'password'
+            'password' => 'password',
         ]);
 
         $response->assertStatus(Response::HTTP_OK)
@@ -57,7 +57,7 @@ class AuthTest extends TestCase
     {
         $response = $this->postJson('/api/login', [
             'email' => 'nonexistent@example.com',
-            'password' => 'wrongpassword'
+            'password' => 'wrongpassword',
         ]);
         $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
@@ -69,7 +69,7 @@ class AuthTest extends TestCase
         $token = $user->createToken('test-token')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/logout');
 
         $response->assertStatus(Response::HTTP_OK);

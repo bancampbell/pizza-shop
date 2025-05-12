@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +12,6 @@ class OrderController extends Controller
 {
     public function store(StoreOrderRequest $request)
     {
-        // Проверка аутентификации
         $user = auth()->user();
         if (!$user) {
             return response()->json(['error' => 'Требуется авторизация'], Response::HTTP_UNAUTHORIZED);
@@ -21,32 +19,35 @@ class OrderController extends Controller
 
         $validated = $request->validated();
 
-        // Получаем корзину с подгруженными продуктами
-        $cartItems = $user->cartItems()->with('product')->get();
+        // Получаем корзину пользователя с товарами
+        $cart = $user->cart()->with('items.product')->first();
 
-        if ($cartItems->isEmpty()) {
+        if (!$cart || $cart->items->isEmpty()) {
             return response()->json(['error' => 'Корзина пуста'], Response::HTTP_BAD_REQUEST);
         }
 
-        // Создаем заказ в транзакции
         try {
             DB::beginTransaction();
 
             $order = $user->orders()->create($validated);
 
-            foreach ($cartItems as $item) {
+            foreach ($cart->items as $item) {
                 $order->products()->attach($item->product_id, [
                     'quantity' => $item->quantity,
                     'price' => $item->product->price,
                 ]);
             }
 
-            $user->cartItems()->delete();
+            // Очищаем корзину
+            $cart->items()->delete();
 
             DB::commit();
 
-            return response()->json(['message' => 'Заказ успешно создан', 'order_id' => $order->id, 'total' => $order->total,], Response::HTTP_CREATED);
-
+            return response()->json([
+                'message' => 'Заказ успешно создан',
+                'order_id' => $order->id,
+                'total' => $order->total,
+            ], Response::HTTP_CREATED);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Ошибка при создании заказа: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -58,7 +59,7 @@ class OrderController extends Controller
         $orders = auth()->user()->orders()
             ->with([
                 'user:id,name',
-                'products' => function($query) {
+                'products' => function ($query) {
                     $query->select(
                         'products.id',
                         'products.name',
@@ -80,7 +81,7 @@ class OrderController extends Controller
         }
 
         return response()->json(
-            $order->load(['products' => function($query) {
+            $order->load(['products' => function ($query) {
                 $query->select(
                     'products.id',
                     'products.name',

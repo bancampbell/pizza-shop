@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,7 +37,7 @@ class AdminTest extends TestCase
         $token = $user->createToken('user-token')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer ' . $token,
         ])->getJson('/api/admin/dashboard');
 
         $response->assertStatus(Response::HTTP_FORBIDDEN);
@@ -53,13 +52,13 @@ class AdminTest extends TestCase
             'user_id' => User::factory(),
             'email' => 'test' . rand(1, 100) . '@example.com',
             'address' => '123 Test Street',
-            'phone' => '1234567890'
+            'phone' => '1234567890',
         ]);
 
         $token = $admin->createToken('admin-token')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer ' . $token,
         ])->getJson('/api/admin/orders');
 
         $response->assertStatus(Response::HTTP_OK)
@@ -74,9 +73,9 @@ class AdminTest extends TestCase
         $token = $admin->createToken('admin-token')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer ' . $token,
         ])->patchJson("/api/admin/orders/{$order->id}/status", [
-            'status' => 'В работе'
+            'status' => 'В работе',
         ]);
 
         $response->assertStatus(Response::HTTP_OK)
@@ -91,9 +90,9 @@ class AdminTest extends TestCase
         $token = $admin->createToken('admin-token')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer ' . $token,
         ])->patchJson("/api/admin/orders/{$order->id}/status", [
-            'status' => 'invalid_status'
+            'status' => 'invalid_status',
         ]);
 
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);

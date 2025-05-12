@@ -20,14 +20,14 @@ class StoreProductRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('products')->whereNull('deleted_at')
+                Rule::unique('products')->whereNull('deleted_at'),
             ],
             'description' => 'nullable|string',
             'price' => [
                 'required',
                 'numeric',
                 'min:0',
-                new ValidProductPrice
+                new ValidProductPrice(),
             ],
             'stock' => 'required|integer|min:0',
             'image' => 'nullable|image|max:2048|mimes:jpeg,png,jpg,gif',
