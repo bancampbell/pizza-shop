@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\CartResource;
-use App\Http\Resources\ProductResource;
 use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +12,8 @@ class CartController extends Controller
 {
     public function __construct(
         protected CartService $cartService
-    ) {}
+    ) {
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -31,6 +30,14 @@ class CartController extends Controller
             $productId,
             $quantity
         );
+
+        if (isset($result['error'])) {
+            return response()->json([
+                'error' => $result['error'],
+                'cart' => $result['cart'],
+                'added_product' => $result['added_product'],
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         return response()->json([
             'message' => 'Товар добавлен в корзину',
@@ -63,7 +70,7 @@ class CartController extends Controller
         );
 
         return response()->json([
-            'message' => 'Товар удален из корзины'
+            'message' => 'Товар удален из корзины',
         ]);
     }
 
@@ -72,7 +79,7 @@ class CartController extends Controller
         $this->cartService->clearCart($request->user());
 
         return response()->json([
-            'message' => 'Корзина очищена'
+            'message' => 'Корзина очищена',
         ]);
     }
 
@@ -81,7 +88,7 @@ class CartController extends Controller
         $cart = $this->cartService->getFormattedCart($request->user());
 
         return response()->json([
-            'total' => $cart['total']
+            'total' => $cart['total'],
         ]);
     }
 }

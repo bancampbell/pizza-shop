@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexProductRequest;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,7 +20,7 @@ class ProductController extends Controller
     {
         $perPage = $request->input('per_page', 10);
         $products = Product::paginate($perPage);
-        return response()->json($products);
+        return ProductResource::collection($products)->toResponse($request);
     }
 
     /**

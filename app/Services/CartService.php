@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Http\Resources\CartResource;
+use App\Http\Resources\ProductResource;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
@@ -23,7 +25,7 @@ class CartService
         }
 
         $cartId = Session::get('cart_id');
-        if (!$cartId) {
+        if (! $cartId) {
             $cart = Cart::create();
             Session::put('cart_id', $cart->id);
             return $cart;
@@ -41,10 +43,19 @@ class CartService
         $this->validateProductType($product);
 
         $cart = $this->getCart($user);
-        $this->checkQuantityLimits($cart, $product, $quantity);
+
+        try {
+            $this->checkQuantityLimits($cart, $product, $quantity);
+        } catch (\LogicException $e) {
+            return [
+                'error' => $e->getMessage(),
+                'cart' => $this->formatCart($cart),
+                'added_product' => new ProductResource($product),
+            ];
+        }
 
         $cartItem = $cart->items()->firstOrNew([
-            'product_id' => $product->id
+            'product_id' => $product->id,
         ]);
 
         $cartItem->quantity += $quantity;
@@ -52,7 +63,7 @@ class CartService
 
         return [
             'cart' => $this->formatCart($cart),
-            'added_product' => $product->only('id', 'name', 'price'),
+            'added_product' => new ProductResource($product),
         ];
     }
 
@@ -94,8 +105,9 @@ class CartService
 
     public function getFormattedCart(?User $user): array
     {
-        $cart = $this->getCart($user);
-        return $this->formatCart($cart);
+        $cart = $this->getCart($user)->load('items.product');
+        $cart->total = $this->calculateTotal($cart);
+        return (new CartResource($cart))->toArray(request());
     }
 
     protected function formatCart(Cart $cart): array
@@ -122,7 +134,7 @@ class CartService
 
     protected function validateProductType(Product $product): void
     {
-        if (!array_key_exists($product->type, $this->typeLimits)) {
+        if (! array_key_exists($product->type, $this->typeLimits)) {
             throw new \InvalidArgumentException('Неизвестный тип продукта');
         }
     }
@@ -134,7 +146,7 @@ class CartService
         bool $isUpdate = false
     ): void {
         $currentQuantity = $cart->items()
-            ->whereHas('product', fn($q) => $q->where('type', $product->type))
+            ->whereHas('product', fn ($q) => $q->where('type', $product->type))
             ->sum('quantity');
 
         if ($isUpdate) {
@@ -153,4 +165,7 @@ class CartService
             throw new \LogicException("Максимальное количество {$product->type} в корзине - {$limit}");
         }
     }
+
+
+
 }

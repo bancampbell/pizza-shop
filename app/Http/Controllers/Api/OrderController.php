@@ -13,7 +13,7 @@ class OrderController extends Controller
     public function store(StoreOrderRequest $request)
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Требуется авторизация'], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -22,7 +22,7 @@ class OrderController extends Controller
         // Получаем корзину пользователя с товарами
         $cart = $user->cart()->with('items.product')->first();
 
-        if (!$cart || $cart->items->isEmpty()) {
+        if (! $cart || $cart->items->isEmpty()) {
             return response()->json(['error' => 'Корзина пуста'], Response::HTTP_BAD_REQUEST);
         }
 
